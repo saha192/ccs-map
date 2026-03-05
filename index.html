@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <title>India CO₂ Emissions Map</title>
 
-<link rel="stylesheet"
-href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -39,13 +38,13 @@ height:12px;
 margin-right:6px;
 }
 
-/* ===== STATISTICS PANEL ===== */
+/* ===== statistics panel ===== */
 
 #statsBox{
 
 position:absolute;
 bottom:20px;
-right:20px;      /* moved to right side */
+right:20px;
 
 width:340px;
 
@@ -57,6 +56,7 @@ border-radius:8px;
 box-shadow:0 0 12px rgba(0,0,0,0.25);
 
 z-index:1000;
+
 font-size:13px;
 
 }
@@ -101,33 +101,13 @@ L.tileLayer(
 
 const sectors = {
 
-Power:{
-file:"data/co2_emissions_2024_summary_power.csv",
-color:"#00bcd4"
-},
-
-Cement:{
-file:"data/co2_emissions_2024_summary_cement.csv",
-color:"#ff9800"
-},
-
-Steel:{
-file:"data/co2_emissions_2024_summary_steel.csv",
-color:"#9c27b0"
-},
-
-Refinery:{
-file:"data/co2_emissions_2024_summary_refinery.csv",
-color:"#4caf50"
-},
-
-Fertilisers:{
-file:"data/co2_emissions_2024_summary_fertilisers.csv",
-color:"#f44336"
-}
+Power:{file:"data/co2_emissions_2024_summary_power.csv",color:"#00bcd4"},
+Cement:{file:"data/co2_emissions_2024_summary_cement.csv",color:"#ff9800"},
+Steel:{file:"data/co2_emissions_2024_summary_steel.csv",color:"#9c27b0"},
+Refinery:{file:"data/co2_emissions_2024_summary_refinery.csv",color:"#4caf50"},
+Fertilisers:{file:"data/co2_emissions_2024_summary_fertilisers.csv",color:"#f44336"}
 
 };
-
 
 const layers = {};
 const sectorTotals = {};
@@ -159,38 +139,25 @@ dynamicTyping:true,
 
 complete:function(results){
 
-/* ===== FILTER VALID PLANTS ===== */
-
-const validPlants = results.data.filter(row => {
-
-const emissions = row.total_co2_emissions_2024;
-
-return (
-row.lat &&
-row.lon &&
-emissions &&
-emissions > 0
-);
-
+const validPlants = results.data.filter(row=>{
+const e=row.total_co2_emissions_2024;
+return row.lat && row.lon && e && e>0;
 });
 
-
-/* ===== FIND MAX ===== */
+/* find max */
 
 validPlants.forEach(row=>{
-
 if(row.total_co2_emissions_2024 > maxEmission){
-maxEmission = row.total_co2_emissions_2024;
+maxEmission=row.total_co2_emissions_2024;
 }
-
 });
 
 
-/* ===== CREATE MARKERS ===== */
+/* create markers */
 
 validPlants.forEach(row=>{
 
-const emissions = row.total_co2_emissions_2024;
+const emissions=row.total_co2_emissions_2024;
 
 sectorSum += emissions;
 plantCount++;
@@ -199,39 +166,27 @@ sectorEmissions[sectorName].push(emissions);
 
 const radius =
 MIN_RADIUS +
-Math.sqrt(emissions/maxEmission) *
-(MAX_RADIUS-MIN_RADIUS);
+Math.sqrt(emissions/maxEmission)*(MAX_RADIUS-MIN_RADIUS);
 
-const marker = L.circleMarker(
-
+const marker=L.circleMarker(
 [row.lat,row.lon],
-
 {
 radius:radius,
 color:config.color,
 fillColor:config.color,
 fillOpacity:0.7,
 weight:0
-}
-
-)
+})
 
 .bindTooltip(
 `<strong>${row.source_name}</strong><br>
 CO₂ (2024): ${(emissions/1e6).toFixed(2)} Mt`,
-{
-direction:"top",
-offset:[0,-6],
-sticky:true
-}
-)
+{direction:"top",offset:[0,-6],sticky:true})
 
 .bindPopup(
 `<strong>${row.source_name}</strong><br>
 Sector: ${sectorName}<br>
-CO₂ (2024): ${emissions.toLocaleString()} t<br>
-Source ID: ${row.source_id}`
-);
+CO₂ (2024): ${emissions.toLocaleString()} t`);
 
 marker.on("mouseover",function(){
 this.setStyle({weight:2,fillOpacity:0.9});
@@ -245,9 +200,8 @@ marker.addTo(layer);
 
 });
 
-
-sectorTotals[sectorName] = sectorSum;
-sectorCounts[sectorName] = plantCount;
+sectorTotals[sectorName]=sectorSum;
+sectorCounts[sectorName]=plantCount;
 
 layer.addTo(map);
 
@@ -262,7 +216,7 @@ updateEmissionStats();
 }
 
 
-/* ================= LOAD SECTORS ================= */
+/* load all sectors */
 
 Object.entries(sectors).forEach(([name,cfg])=>{
 loadSector(name,cfg);
@@ -271,47 +225,32 @@ loadSector(name,cfg);
 
 /* ================= LAYER CONTROL ================= */
 
-L.control.layers(null,layers,{collapsed:false}).addTo(map);
-
-
-/* ================= LEGEND ================= */
-
-const legend = L.control({position:"bottomright"});
-
-legend.onAdd = function(){
-
-const div = L.DomUtil.create("div","legend");
-
-div.innerHTML = "<strong>Sectors</strong><br>";
+const overlays={};
 
 Object.entries(sectors).forEach(([name,cfg])=>{
-div.innerHTML += `<span style="background:${cfg.color}"></span>${name}<br>`;
+overlays[`<span style="color:${cfg.color}">⬤</span> ${name}`]=layers[name];
 });
 
-return div;
-
-};
-
-legend.addTo(map);
+L.control.layers(null,overlays,{collapsed:false}).addTo(map);
 
 
 /* ================= TOTAL CO2 ================= */
 
-const totalCO2Control = L.control({position:"bottomleft"});
+const totalCO2Control=L.control({position:"bottomleft"});
 
-totalCO2Control.onAdd = function(){
+totalCO2Control.onAdd=function(){
 
-this._div = L.DomUtil.create("div","legend");
+this._div=L.DomUtil.create("div","legend");
 this.update(0);
 return this._div;
 
 };
 
-totalCO2Control.update = function(totalTonnes){
+totalCO2Control.update=function(totalTonnes){
 
-const mt = totalTonnes/1e6;
+const mt=totalTonnes/1e6;
 
-this._div.innerHTML =
+this._div.innerHTML=
 `<strong>Total CO₂ (2024)</strong><br>
 ${mt.toLocaleString(undefined,{maximumFractionDigits:2})} Mt`;
 
@@ -319,17 +258,14 @@ ${mt.toLocaleString(undefined,{maximumFractionDigits:2})} Mt`;
 
 totalCO2Control.addTo(map);
 
-
 function updateTotalCO2(){
 
-let total = 0;
+let total=0;
 
 Object.keys(layers).forEach(sector=>{
-
 if(map.hasLayer(layers[sector])){
-total += sectorTotals[sector] || 0;
+total+=sectorTotals[sector]||0;
 }
-
 });
 
 totalCO2Control.update(total);
@@ -339,19 +275,19 @@ totalCO2Control.update(total);
 
 /* ================= PLANT COUNT ================= */
 
-const plantCountControl = L.control({position:"topright"});
+const plantCountControl=L.control({position:"topright"});
 
-plantCountControl.onAdd = function(){
+plantCountControl.onAdd=function(){
 
-this._div = L.DomUtil.create("div","legend");
+this._div=L.DomUtil.create("div","legend");
 this.update(0);
 return this._div;
 
 };
 
-plantCountControl.update = function(count){
+plantCountControl.update=function(count){
 
-this._div.innerHTML =
+this._div.innerHTML=
 `<strong>Total Plants</strong><br>
 ${count.toLocaleString()}`;
 
@@ -359,17 +295,14 @@ ${count.toLocaleString()}`;
 
 plantCountControl.addTo(map);
 
-
 function updatePlantCount(){
 
-let count = 0;
+let count=0;
 
 Object.keys(layers).forEach(sector=>{
-
 if(map.hasLayer(layers[sector])){
-count += sectorCounts[sector] || 0;
+count+=sectorCounts[sector]||0;
 }
-
 });
 
 plantCountControl.update(count);
@@ -383,47 +316,42 @@ let emissionChart;
 
 function updateEmissionStats(){
 
-let emissions = [];
+let emissions=[];
 
 Object.keys(layers).forEach(sector=>{
-
 if(map.hasLayer(layers[sector])){
-emissions = emissions.concat(sectorEmissions[sector] || []);
+emissions=emissions.concat(sectorEmissions[sector]||[]);
 }
-
 });
 
-if(emissions.length === 0) return;
+if(emissions.length===0)return;
+
+const min=Math.min(...emissions);
+const max=Math.max(...emissions);
+
+/* min in tonnes */
+
+document.getElementById("minEmission").innerHTML=
+"Min: "+min.toLocaleString()+" t";
+
+/* max in Mt */
+
+document.getElementById("maxEmission").innerHTML=
+"Max: "+(max/1e6).toFixed(3)+" Mt";
 
 
-/* remove zero again for safety */
+/* histogram */
 
-emissions = emissions.filter(e => e > 0);
+const bins=10;
+const step=(max-min)/bins;
 
-
-const min = Math.min(...emissions);
-const max = Math.max(...emissions);
-
-document.getElementById("minEmission").innerHTML =
-"Min: " + (min/1e6).toFixed(3) + " Mt";
-
-document.getElementById("maxEmission").innerHTML =
-"Max: " + (max/1e6).toFixed(3) + " Mt";
-
-
-/* ===== HISTOGRAM ===== */
-
-const bins = 10;
-
-const step = (max-min)/bins;
-
-const histogram = new Array(bins).fill(0);
-const labels = [];
+const histogram=new Array(bins).fill(0);
+const labels=[];
 
 for(let i=0;i<bins;i++){
 
-const start = min + i*step;
-const end = start + step;
+const start=min+i*step;
+const end=start+step;
 
 labels.push((start/1e6).toFixed(2));
 
@@ -435,14 +363,13 @@ histogram[i]++;
 
 }
 
-
-const ctx = document.getElementById("emissionChart");
+const ctx=document.getElementById("emissionChart");
 
 if(emissionChart){
 emissionChart.destroy();
 }
 
-emissionChart = new Chart(ctx,{
+emissionChart=new Chart(ctx,{
 
 type:"bar",
 
