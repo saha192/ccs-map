@@ -4,21 +4,15 @@
 <meta charset="UTF-8" />
 <title>India CO₂ Emissions Map</title>
 
-<!-- Leaflet -->
-<link
-rel="stylesheet"
-href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-/>
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-<!-- PapaParse -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-
-<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 
-html, body{
+html,body{
 height:100%;
 margin:0;
 font-family:system-ui,-apple-system,BlinkMacSystemFont;
@@ -45,19 +39,26 @@ height:12px;
 margin-right:6px;
 }
 
-/* Statistics box */
+/* ===== STATISTICS PANEL ===== */
 
 #statsBox{
+
 position:absolute;
 bottom:20px;
-left:20px;
+right:20px;      /* moved to right side */
+
 width:340px;
+
 background:white;
 padding:12px;
+
 border-radius:8px;
+
 box-shadow:0 0 12px rgba(0,0,0,0.25);
+
 z-index:1000;
 font-size:13px;
+
 }
 
 #emissionChart{
@@ -72,13 +73,16 @@ margin-top:10px;
 <div id="map"></div>
 
 <div id="statsBox">
+
 <strong>Emission Statistics</strong>
+
 <div id="minEmission"></div>
 <div id="maxEmission"></div>
+
 <canvas id="emissionChart"></canvas>
+
 </div>
 
-<!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
@@ -155,33 +159,43 @@ dynamicTyping:true,
 
 complete:function(results){
 
-/* ===== PASS 1 : FIND MAX EMISSION ===== */
+/* ===== FILTER VALID PLANTS ===== */
 
-results.data.forEach(row=>{
+const validPlants = results.data.filter(row => {
 
-const emissions = row.total_co2_emissions_2024 || 0;
+const emissions = row.total_co2_emissions_2024;
 
-if(emissions > 0 && emissions > maxEmission){
-maxEmission = emissions;
+return (
+row.lat &&
+row.lon &&
+emissions &&
+emissions > 0
+);
+
+});
+
+
+/* ===== FIND MAX ===== */
+
+validPlants.forEach(row=>{
+
+if(row.total_co2_emissions_2024 > maxEmission){
+maxEmission = row.total_co2_emissions_2024;
 }
 
 });
 
 
-/* ===== PASS 2 : CREATE MARKERS ===== */
+/* ===== CREATE MARKERS ===== */
 
-results.data.forEach(row=>{
+validPlants.forEach(row=>{
 
-const emissions = row.total_co2_emissions_2024 || 0;
-
-if(!row.lat || !row.lon || emissions <= 0) return;
+const emissions = row.total_co2_emissions_2024;
 
 sectorSum += emissions;
 plantCount++;
 
 sectorEmissions[sectorName].push(emissions);
-
-/* circle size */
 
 const radius =
 MIN_RADIUS +
@@ -189,7 +203,9 @@ Math.sqrt(emissions/maxEmission) *
 (MAX_RADIUS-MIN_RADIUS);
 
 const marker = L.circleMarker(
+
 [row.lat,row.lon],
+
 {
 radius:radius,
 color:config.color,
@@ -197,6 +213,7 @@ fillColor:config.color,
 fillOpacity:0.7,
 weight:0
 }
+
 )
 
 .bindTooltip(
@@ -215,7 +232,6 @@ Sector: ${sectorName}<br>
 CO₂ (2024): ${emissions.toLocaleString()} t<br>
 Source ID: ${row.source_id}`
 );
-
 
 marker.on("mouseover",function(){
 this.setStyle({weight:2,fillOpacity:0.9});
@@ -246,7 +262,7 @@ updateEmissionStats();
 }
 
 
-/* ===== LOAD ALL SECTORS ===== */
+/* ================= LOAD SECTORS ================= */
 
 Object.entries(sectors).forEach(([name,cfg])=>{
 loadSector(name,cfg);
@@ -273,6 +289,7 @@ div.innerHTML += `<span style="background:${cfg.color}"></span>${name}<br>`;
 });
 
 return div;
+
 };
 
 legend.addTo(map);
@@ -378,6 +395,12 @@ emissions = emissions.concat(sectorEmissions[sector] || []);
 
 if(emissions.length === 0) return;
 
+
+/* remove zero again for safety */
+
+emissions = emissions.filter(e => e > 0);
+
+
 const min = Math.min(...emissions);
 const max = Math.max(...emissions);
 
@@ -391,6 +414,7 @@ document.getElementById("maxEmission").innerHTML =
 /* ===== HISTOGRAM ===== */
 
 const bins = 10;
+
 const step = (max-min)/bins;
 
 const histogram = new Array(bins).fill(0);
@@ -425,7 +449,6 @@ type:"bar",
 data:{
 labels:labels,
 datasets:[{
-label:"Plants",
 data:histogram,
 backgroundColor:"#2196f3"
 }]
